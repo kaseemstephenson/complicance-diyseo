@@ -265,7 +265,7 @@ function diyseo_show_user_info($licenseKey) {
     }
 }
 
-function enqueue_diyseo_admin_scripts() {
+function diyseo_ai_enqueue_admin_scripts() {
     wp_enqueue_script('diyseo-settings', plugin_dir_url(__FILE__) . 'js/diyseo-settings.js', array('jquery'), '1.0.0', true);
     
     wp_localize_script('diyseo-settings', 'diyseoAjax', array(
@@ -273,7 +273,7 @@ function enqueue_diyseo_admin_scripts() {
         'nonce' => wp_create_nonce('diyseo_ajax_nonce')
     ));
 }
-add_action('admin_enqueue_scripts', 'enqueue_diyseo_admin_scripts');
+add_action('admin_enqueue_scripts', 'diyseo_ai_enqueue_admin_scripts');
 
 // AJAX handler for deactivation
 function diyseo_deactivate_license_handler() {

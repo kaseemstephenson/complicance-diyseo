@@ -190,8 +190,10 @@ function diyseo_render_command_center() {
 add_action('admin_enqueue_scripts', function ($hook) {
     if (strpos($hook, 'diyseo-command-center') === false) return;
 
-    wp_enqueue_style('diyseo-command-center-css', plugin_dir_url(__FILE__) . 'css/diyseo-command-center.css');
-    wp_enqueue_script('diyseo-command-center-js', plugin_dir_url(__FILE__) . 'js/diyseo-command-center.js', ['jquery'], null, true);
+    $version = defined('DIYSEO_PLUGIN_VERSION') ? DIYSEO_PLUGIN_VERSION : '1.0.0';
+
+    wp_enqueue_style('diyseo-command-center-css', plugin_dir_url(__FILE__) . 'css/diyseo-command-center.css', array(), $version);
+    wp_enqueue_script('diyseo-command-center-js', plugin_dir_url(__FILE__) . 'js/diyseo-command-center.js', ['jquery'], $version, true);
 
     wp_localize_script('diyseo-command-center-js', 'DIYSEO_CC', [
         'api' => 'https://diyseoapi-69f00dabdd4f.herokuapp.com/api/command-center',

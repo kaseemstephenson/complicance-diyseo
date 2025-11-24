@@ -13,7 +13,12 @@ License: GPL2
  */
  if (! defined( 'ABSPATH' )) {
      exit;
- } // Exit if accessed directly 
+ } // Exit if accessed directly
+
+if (!defined('DIYSEO_PLUGIN_VERSION')) {
+    define('DIYSEO_PLUGIN_VERSION', '3.4.0');
+}
+
 require_once(plugin_dir_path(__FILE__) . 'diyseo-settings.php');
 
 
@@ -263,7 +268,7 @@ function diyseo_ajax_check_license_key() {
 add_action('wp_ajax_diyseo_check_license_key', 'diyseo_ajax_check_license_key');
 add_action('wp_ajax_nopriv_diyseo_check_license_key', 'diyseo_ajax_check_license_key');
 function diyseo_enqueue_scripts() {
-    wp_enqueue_script('diyseo-ajax-script', plugin_dir_url(__FILE__) . 'diyseo-script.js', array('jquery'));
+    wp_enqueue_script('diyseo-ajax-script', plugin_dir_url(__FILE__) . 'diyseo-script.js', array('jquery'), DIYSEO_PLUGIN_VERSION, true);
 
     wp_localize_script('diyseo-ajax-script', 'diyseo_ajax_object', array(
         'ajax_url' => admin_url('admin-ajax.php'),
@@ -280,7 +285,7 @@ function diyseo_enqueue_scripts() {
         ));
 
         // Register and enqueue our custom styles
-        wp_register_style('diyseo-admin-styles', false);
+        wp_register_style('diyseo-admin-styles', false, array(), DIYSEO_PLUGIN_VERSION);
         wp_enqueue_style('diyseo-admin-styles');
         
         wp_add_inline_style('diyseo-admin-styles', '
@@ -522,7 +527,6 @@ function diyseo_generate_content($prompt) {
         //("Content generated successfully");
         return $parsedResponse['choices'][0]['message']['content'];
     } else {
-        //("Unexpected response structure: " . print_r($parsedResponse, true));
         return new WP_Error('api_error', 'Failed to generate content or unexpected response structure.');
     }
 }
@@ -679,7 +683,6 @@ function diyseo_ajax_get_categories() {
    foreach ($sites as $site) {
         if ($site['domain'] === $domain && isset($site['categories'])) {
             $categories_data = json_decode($site['categories'], true);
-            //error_log('Categories Data: ' . print_r($categories_data, true));
 
             if (isset($categories_data['categories']) && is_array($categories_data['categories'])) {
                 $formatted_categories = [];
@@ -733,9 +736,7 @@ $category = isset($_POST['category']) ? sanitize_text_field(wp_unslash($_POST['c
     $user_email = get_user_meta($user_id, 'diyseo_user_email', true);
     $access_token = get_user_meta($user_id, 'diyseo_access_token', true);
     
-    //error_log('Selected Category: ' . $category);
-
-    $response = wp_remote_get('https://diyseoapi-69f00dabdd4f.herokuapp.com/siteList/' . 
+    $response = wp_remote_get('https://diyseoapi-69f00dabdd4f.herokuapp.com/siteList/' .
         urlencode($user_email) . '/' . urlencode($access_token));
     
     if (is_wp_error($response)) {
@@ -755,8 +756,6 @@ $category = isset($_POST['category']) ? sanitize_text_field(wp_unslash($_POST['c
                 foreach ($calendar_data['content_calendar'] as $article) {
                     $mainCategory = isset($article['category']) ? $article['category'] : '';
                     $subCategory = isset($article['subcategory']) ? $article['subcategory'] : '';
-                    
-                    //error_log("Article Main Category: $mainCategory, Subcategory: $subCategory");
                     
                     if ($category === 'All') {
                         // Include all articles
@@ -794,8 +793,6 @@ $category = isset($_POST['category']) ? sanitize_text_field(wp_unslash($_POST['c
         $article['status'] = in_array($article['title'], $existing_articles) ? 'completed' : 'pending';
     }
     
-    //error_log('Found Articles: ' . print_r($articles, true));
-    
     wp_send_json_success(array(
         'articles' => $articles,
         'existing' => $existing_articles
@@ -823,10 +820,6 @@ $title = isset($_POST['title']) ? sanitize_text_field(wp_unslash($_POST['title']
        // wp_send_json_error(array('message' => $error_message));
         return;
     }
-    if (!empty($additional_context)) {
-    //error_log('Additional context present: ' . $additional_context);
-}
-
     update_post_meta($post_id, '_diyseo_post_title', $title);
     update_post_meta($post_id, '_diyseo_word_count', $word_count);
 
@@ -870,12 +863,8 @@ if (!empty($focus_keyword)) {
 if (!empty($additional_context)) {
     $prompt .= "\n\nAdditional context to incorporate:\n" . $additional_context;
 }
-
-
-
-error_log('Final prompt: ' . $prompt);
- $content = diyseo_generate_content($prompt);
-if (!is_wp_error($content)) {
+    $content = diyseo_generate_content($prompt);
+    if (!is_wp_error($content)) {
         $blocks_content = diyseo_convert_to_blocks($content, $title);
         
         // Check if auto-generate meta is enabled
@@ -1392,7 +1381,6 @@ function diyseo_ajax_generate_featured_image() {
 
     $image_data = diyseo_generate_dalle_image($prompt);
     if (is_wp_error($image_data)) {
-        error_log('DIYSEO generate image error: ' . $image_data->get_error_message());
         wp_send_json_error($image_data->get_error_message());
     } elseif ($image_data && isset($image_data['url']) && isset($image_data['id'])) {
         wp_send_json_success($image_data);
@@ -1405,16 +1393,12 @@ add_action('wp_ajax_diyseo_generate_featured_image', 'diyseo_ajax_generate_featu
 function diyseo_ajax_confirm_featured_image() {
     $nonce = diyseo_get_post_data('nonce');
     if (!$nonce || !wp_verify_nonce($nonce, 'diyseo_confirm_featured_image')) {
-       //("DIYSEO: Nonce verification failed");
         wp_send_json_error('Nonce verification failed');
         return;
     }
 
     $post_id = intval(diyseo_get_post_data('post_id'));
     $attachment_id = intval(diyseo_get_post_data('attachment_id'));
-
-   //("DIYSEO: Confirming featured image - Post ID: $post_id, Attachment ID: $attachment_id");
-   //("DIYSEO: Raw POST data: " . print_r($_POST, true));
 
     if ($post_id === 0) {
        //("DIYSEO: Invalid post ID: $post_id");
@@ -1776,9 +1760,11 @@ function diyseo_calendar_meta_box_callback($post) {
                 'diyseo_article_title' => 'Article Title:'
             ];
             foreach ($fields as $id => $label) {
+                $field_id = esc_attr($id);
+                $field_label = esc_html($label);
                 echo '<div style="margin-bottom: 15px;">
-                    <label for="'.$id.'">'.$label.'</label><br>
-                    <select id="'.$id.'" name="'.$id.'" style="width: 100%; padding: 10px; border-radius: 5px; background-color: #12163A; color: #E0E0E0; border: none;">
+                    <label for="'.$field_id.'">'.$field_label.'</label><br>
+                    <select id="'.$field_id.'" name="'.$field_id.'" style="width: 100%; padding: 10px; border-radius: 5px; background-color: #12163A; color: #E0E0E0; border: none;">
                         <option value="">Select</option>
                     </select>
                 </div>';
@@ -1953,11 +1939,8 @@ function diyseo_generate_dalle_image($prompt) {
     $response = wp_remote_post($url, $args);
 
     if (is_wp_error($response)) {
-        error_log('DIYSEO DALL-E request failed: ' . print_r($response, true));
         return new WP_Error('remote_post_error', $response->get_error_message());
     }
-
-    error_log('DIYSEO DALL-E response: ' . print_r($response, true));
 
     $body = wp_remote_retrieve_body($response);
     if (!$body) {
@@ -1970,7 +1953,6 @@ function diyseo_generate_dalle_image($prompt) {
     }
 
     if (!isset($data['data'][0]['b64_json'])) {
-        error_log('DIYSEO DALL-E missing b64_json. Body: ' . $body);
         return new WP_Error('no_image_data', 'DALL-E did not return image data.');
     }
 
@@ -2273,7 +2255,12 @@ function diyseo_output_faq_schema() {
         global $post;
         $schema = get_post_meta($post->ID, '_diyseo_faq_schema', true);
         if (!empty($schema)) {
-            echo '<script type="application/ld+json">' . $schema . '</script>';
+            $schema_data = json_decode($schema, true);
+            $schema_output = wp_json_encode($schema_data ? $schema_data : $schema);
+
+            if ($schema_output) {
+                echo '<script type="application/ld+json">' . $schema_output . '</script>';
+            }
         }
     }
 }
@@ -2486,42 +2473,42 @@ function diyseo_setup_screenshots() {
         $upload_dir = wp_upload_dir();
         
         // Dashboard screenshot
-        $dashboard_image = 'https://diyseo.ai/wp-content/uploads/2024/10/Screen-Shot-2024-10-21-at-12.53.18-PM-1024x409-1.png';
+        $dashboard_image = plugin_dir_url(__FILE__) . 'assets/images/Screen-Shot-2024-10-21-at-12.53.18-PM-1024x409-1.png';
         $dashboard_id = media_sideload_image($dashboard_image, 0, 'DIYSEO Dashboard Screenshot', 'id');
         if (!is_wp_error($dashboard_id)) {
             update_option('diyseo_dashboard_screenshot_id', $dashboard_id);
         }
         
         // Plugin interface screenshot
-        $interface_image = 'https://diyseo.ai/wp-content/uploads/2024/10/form-screenshot-1024x534.png';
+        $interface_image = plugin_dir_url(__FILE__) . 'assets/images/form-screenshot-1024x534.png';
         $interface_id = media_sideload_image($interface_image, 0, 'DIYSEO Plugin Interface Screenshot', 'id');
         if (!is_wp_error($interface_id)) {
             update_option('diyseo_interface_screenshot_id', $interface_id);
         }
         
         // Calendar Step 1 screenshot
-        $calendar_step1_image = 'https://diyseo.ai/wp-content/uploads/2024/12/Screenshot-2024-12-09-102912.png';
+        $calendar_step1_image = plugin_dir_url(__FILE__) . 'assets/images/Screenshot-2024-12-09-102912.png';
         $calendar_step1_id = media_sideload_image($calendar_step1_image, 0, 'DIYSEO Calendar Step 1 Screenshot', 'id');
         if (!is_wp_error($calendar_step1_id)) {
             update_option('diyseo_calendar_step1_id', $calendar_step1_id);
         }
         
         // Calendar Step 2 screenshot
-        $calendar_step2_image = 'https://diyseo.ai/wp-content/uploads/2024/12/Screenshot-2024-12-09-103047.png';
+        $calendar_step2_image = plugin_dir_url(__FILE__) . 'assets/images/Screenshot-2024-12-09-103047.png';
         $calendar_step2_id = media_sideload_image($calendar_step2_image, 0, 'DIYSEO Calendar Step 2 Screenshot', 'id');
         if (!is_wp_error($calendar_step2_id)) {
             update_option('diyseo_calendar_step2_id', $calendar_step2_id);
         }
         
         // Calendar Step 3 screenshot
-        $calendar_step3_image = 'https://diyseo.ai/wp-content/uploads/2024/12/Screenshot-2024-12-09-103140.png';
+        $calendar_step3_image = plugin_dir_url(__FILE__) . 'assets/images/Screenshot-2024-12-09-103140.png';
         $calendar_step3_id = media_sideload_image($calendar_step3_image, 0, 'DIYSEO Calendar Step 3 Screenshot', 'id');
         if (!is_wp_error($calendar_step3_id)) {
             update_option('diyseo_calendar_step3_id', $calendar_step3_id);
         }
         
         // Calendar Main screenshot
-        $calendar_main_image = 'https://diyseo.ai/wp-content/uploads/2024/12/Screenshot-2024-12-09-103627.png';
+        $calendar_main_image = plugin_dir_url(__FILE__) . 'assets/images/Screenshot-2024-12-09-103627.png';
         $calendar_main_id = media_sideload_image($calendar_main_image, 0, 'DIYSEO Calendar Main Screenshot', 'id');
         if (!is_wp_error($calendar_main_id)) {
             update_option('diyseo_calendar_main_id', $calendar_main_id);
@@ -2556,7 +2543,7 @@ function diyseo_setup_logo() {
         require_once(ABSPATH . 'wp-admin/includes/file.php');
         require_once(ABSPATH . 'wp-admin/includes/image.php');
         
-        $logo_url = 'https://diyseo.ai/wp-content/uploads/2024/12/logo-1.png'; // Replace with actual logo URL
+        $logo_url = plugin_dir_url(__FILE__) . 'assets/images/logo-1.png';
         $logo_id = media_sideload_image($logo_url, 0, 'DIY SEO Logo', 'id');
         
         if (!is_wp_error($logo_id)) {
